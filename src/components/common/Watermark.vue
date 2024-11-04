@@ -4,7 +4,7 @@ interface Props {
   text?: string
 }
 const {
-  text = 'Watermark',
+  text = 'Easy色卡',
 } = defineProps<Props>()
 </script>
 

@@ -3,9 +3,10 @@ import type { DataTableColumns, FormInst } from 'naive-ui'
 import CopyText from '@/components/custom/CopyText.vue'
 import { Gender } from '@/constants'
 import { useBoolean } from '@/hooks'
-import { fetchUserPage } from '@/service'
-import { NButton, NPopconfirm, NSpace, NSwitch, NTag } from 'naive-ui'
+import { fetchUserList } from '@/service/api/user'
+import { NButton, NPopconfirm, NSpace, NSwitch, NTag, NText } from 'naive-ui'
 import TableModal from './components/TableModal.vue'
+import type { Entity } from '@/typings/entities/user'
 
 const { bool: loading, setTrue: startLoading, setFalse: endLoading } = useBoolean(false)
 
@@ -29,30 +30,22 @@ const columns: DataTableColumns<Entity.User> = [
   {
     title: '姓名',
     align: 'center',
-    key: 'userName',
+    key: 'user_name',
   },
   {
     title: '性别',
     align: 'center',
     key: 'gender',
-    render: (row) => {
-      const tagType = {
-        0: 'primary',
-        1: 'success',
-      } as const
-      if (row.gender) {
-        return (
-          <NTag type={tagType[row.gender]}>
-            {Gender[row.gender]}
-          </NTag>
-        )
-      }
-    },
   },
   {
     title: '邮箱',
     align: 'center',
     key: 'email',
+    render: (row) => {
+      return (
+        <NText>{row.email || '-'}</NText>
+      )
+    },
   },
   {
     title: '联系方式',
@@ -60,7 +53,17 @@ const columns: DataTableColumns<Entity.User> = [
     key: 'tel',
     render: (row) => {
       return (
-        <CopyText value={row.tel} />
+        <CopyText value={row.phone} />
+      )
+    },
+  },
+  {
+    title: '角色',
+    align: 'center',
+    key: 'role',
+    render: (row) => {
+      return (
+        <NText>{row.role?.name || '-'}</NText>
       )
     },
   },
@@ -117,7 +120,7 @@ function handleUpdateDisabled(value: 0 | 1, id: number) {
 
 async function getUserList() {
   startLoading()
-  await fetchUserPage().then((res: any) => {
+  await fetchUserList({ page: 1, pageSize: 10 }).then((res: any) => {
     listData.value = res.data.list
     count.value = res.data.count
     endLoading()
@@ -131,89 +134,52 @@ onMounted(() => {
 function changePage(page: number, size: number) {
   window.$message.success(`分页器:${page},${size}`)
 }
-
-const treeData = ref([
-  {
-    id: '1',
-    label: '安徽总公司',
-    children: [
-      {
-        id: '2',
-        label: '合肥分公司',
-        children: [
-          {
-            id: '4',
-            label: '财务部门',
-          },
-          {
-            id: '5',
-            label: '采购部门',
-          },
-        ],
-      },
-      {
-        id: '3',
-        label: '芜湖分公司',
-      },
-    ],
-  },
-])
 </script>
 
 <template>
-  <n-flex>
-    <n-card class="w-70">
-      <n-tree
-        block-line
-        :data="treeData"
-        key-field="id"
-      />
+  <NSpace vertical class="flex-1">
+    <n-card>
+      <n-form ref="formRef" :model="model" label-placement="left" inline :show-feedback="false">
+        <n-flex>
+          <n-form-item label="姓名" path="condition_1">
+            <n-input v-model:value="model.condition_1" placeholder="请输入" />
+          </n-form-item>
+          <n-form-item label="性别" path="condition_2">
+            <n-input v-model:value="model.condition_2" placeholder="请输入" />
+          </n-form-item>
+          <n-flex class="ml-auto">
+            <NButton type="primary" @click="getUserList">
+              <template #icon>
+                <icon-park-outline-search />
+              </template>
+              搜索
+            </NButton>
+            <NButton strong secondary @click="handleResetSearch">
+              <template #icon>
+                <icon-park-outline-redo />
+              </template>
+              重置
+            </NButton>
+          </n-flex>
+        </n-flex>
+      </n-form>
     </n-card>
 
-    <NSpace vertical class="flex-1">
-      <n-card>
-        <n-form ref="formRef" :model="model" label-placement="left" inline :show-feedback="false">
-          <n-flex>
-            <n-form-item label="姓名" path="condition_1">
-              <n-input v-model:value="model.condition_1" placeholder="请输入" />
-            </n-form-item>
-            <n-form-item label="性别" path="condition_2">
-              <n-input v-model:value="model.condition_2" placeholder="请输入" />
-            </n-form-item>
-            <n-flex class="ml-auto">
-              <NButton type="primary" @click="getUserList">
-                <template #icon>
-                  <icon-park-outline-search />
-                </template>
-                搜索
-              </NButton>
-              <NButton strong secondary @click="handleResetSearch">
-                <template #icon>
-                  <icon-park-outline-redo />
-                </template>
-                重置
-              </NButton>
-            </n-flex>
-          </n-flex>
-        </n-form>
-      </n-card>
+    <n-card class="flex-1">
+      <template #header>
+        <NButton type="primary" @click="modalRef.openModal('add')">
+          <template #icon>
+            <icon-park-outline-add-one />
+          </template>
+          新建用户
+        </NButton>
+      </template>
+      <NSpace vertical>
+        <n-data-table :columns="columns" :data="listData" :loading="loading" />
+        <Pagination :count="count" @change="changePage" />
+      </NSpace>
 
-      <n-card class="flex-1">
-        <template #header>
-          <NButton type="primary" @click="modalRef.openModal('add')">
-            <template #icon>
-              <icon-park-outline-add-one />
-            </template>
-            新建用户
-          </NButton>
-        </template>
-        <NSpace vertical>
-          <n-data-table :columns="columns" :data="listData" :loading="loading" />
-          <Pagination :count="count" @change="changePage" />
-        </NSpace>
-
-        <TableModal ref="modalRef" modal-name="用户" />
-      </n-card>
-    </NSpace>
-  </n-flex>
+      <TableModal ref="modalRef" modal-name="用户" />
+    </n-card>
+  </NSpace>
 </template>
